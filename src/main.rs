@@ -104,9 +104,11 @@ pub fn main() -> Result<(), String> {
             }
         }
 
-        //Player Icon
+        canvas.set_draw_color(Color::RGB(100, 0, 0));
+        canvas.fill_rect(Rect::new(0, 0, 1000, 250)).unwrap();
 
-        canvas.set_draw_color(Color::RGB(0, 255, 0));
+        canvas.set_draw_color(Color::RGB(0, 0, 100));
+        canvas.fill_rect(Rect::new(0, 250, 1000, 250)).unwrap();
 
         let mut horizontal_ray_end_loc = (0.0, 0.0);
         let mut horizontal_ray_distance = 0.0;
@@ -298,31 +300,57 @@ pub fn main() -> Result<(), String> {
 
             if horizontal_ray_distance == 0.0 {
                 let vertical_line_y = (500.0 / vertical_ray_distance) * 100.0;
-                let draw_start_y = vertical_line_y / 4.0;
+                let draw_start_y = 250.0 - (vertical_line_y / 2.0);
 
                 canvas.set_draw_color(Color::RGB(0, 255, 0));
-                canvas.fill_rect(Rect::new(x_render as i32, draw_start_y as i32, 13, vertical_line_y as u32)).unwrap();
+                canvas
+                    .fill_rect(Rect::new(
+                        x_render as i32,
+                        draw_start_y as i32,
+                        13,
+                        vertical_line_y as u32,
+                    ))
+                    .unwrap();
             } else if vertical_ray_distance == 0.0 {
                 let vertical_line_y = (500.0 / horizontal_ray_distance) * 100.0;
-                let draw_start_y = vertical_line_y / 4.0;
+                let draw_start_y = 250.0 - (vertical_line_y / 2.0);
 
                 canvas.set_draw_color(Color::RGB(0, 200, 0));
-                canvas.fill_rect(Rect::new(x_render as i32, draw_start_y as i32, 13, vertical_line_y as u32)).unwrap();
+                canvas
+                    .fill_rect(Rect::new(
+                        x_render as i32,
+                        draw_start_y as i32,
+                        13,
+                        vertical_line_y as u32,
+                    ))
+                    .unwrap();
             } else if horizontal_ray_distance > vertical_ray_distance {
                 let vertical_line_y = (500.0 / vertical_ray_distance) * 100.0;
-                let draw_start_y = vertical_line_y / 4.0;
+                let draw_start_y = 250.0 - (vertical_line_y / 2.0);
 
                 canvas.set_draw_color(Color::RGB(0, 255, 0));
-                canvas.fill_rect(Rect::new(x_render as i32, draw_start_y as i32, 13, vertical_line_y as u32)).unwrap();
+                canvas
+                    .fill_rect(Rect::new(
+                        x_render as i32,
+                        draw_start_y as i32,
+                        13,
+                        vertical_line_y as u32,
+                    ))
+                    .unwrap();
             } else {
                 let vertical_line_y = (500.0 / horizontal_ray_distance) * 100.0;
-                let draw_start_y = vertical_line_y / 4.0;
+                let draw_start_y = 250.0 - (vertical_line_y / 2.0);
 
                 canvas.set_draw_color(Color::RGB(0, 200, 0));
-                canvas.fill_rect(Rect::new(x_render as i32, draw_start_y as i32, 13, vertical_line_y as u32)).unwrap();
+                canvas
+                    .fill_rect(Rect::new(
+                        x_render as i32,
+                        draw_start_y as i32,
+                        13,
+                        vertical_line_y as u32,
+                    ))
+                    .unwrap();
             }
-
-            
 
             x_render += 12.5;
             angle += 0.02;
