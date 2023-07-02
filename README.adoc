@@ -1,0 +1,6 @@
+= ray-casting
+
+
+Needed to get better at applying math on it, tried to make ray caster, and it barely works. much better at maths now.
+
+Update: Decided that it was embarrassingly bad and decided to fix it. no more dodgy rays, actually draws the correct amount of rays as well.

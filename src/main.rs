@@ -1,14 +1,18 @@
-extern crate sdl2;
-
 use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
+use sdl2::keyboard::Scancode;
 use sdl2::pixels::Color;
-use sdl2::rect::Rect;
+use sdl2::rect::{Point, Rect};
 use std::f64::consts::PI;
 use std::time::Duration;
 
-const WIN_X: u32 = 1000;
-const WIN_Y: u32 = 500;
+const WIN_X: u32 = 960;
+const WIN_Y: u32 = 540;
+
+// const WIN_X: u32 = 1000;
+// const WIN_Y: u32 = 1000;
+
+const MOVE_AMOUNT: f64 = 0.02;
+const FOV: f64 = PI / 3.0;
 
 const MAP: [[u32; 10]; 10] = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -41,324 +45,230 @@ pub fn main() -> Result<(), String> {
     canvas.clear();
     canvas.present();
 
-    let mut player_pos_x = 400.0;
-    let mut player_pos_y = 400.0;
+    let mut player_pos_x = 4.0;
+    let mut player_pos_y = 4.0;
     let mut player_facing_angle: f64 = 0.0;
 
-    let move_amount = 10.0;
-
     'running: loop {
-        //Clear previous rendering, (clean canvas)
         canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
 
-        //Work out player facing dir
-
-        let player_movement_x_offset = move_amount * player_facing_angle.cos();
-
-        let player_movement_y_offset = move_amount * player_facing_angle.sin();
-
-        //Event handling
         for event in event_pump.poll_iter() {
             match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => break 'running,
-
-                Event::KeyDown {
-                    keycode: Some(Keycode::W),
-                    ..
-                } => {
-                    player_pos_x = player_pos_x + player_movement_x_offset;
-                    player_pos_y = player_pos_y + player_movement_y_offset;
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::S),
-                    ..
-                } => {
-                    player_pos_x = player_pos_x - player_movement_x_offset;
-                    player_pos_y = player_pos_y - player_movement_y_offset;
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::A),
-                    ..
-                } => {
-                    player_facing_angle -= 0.25;
-                    if player_facing_angle < 0.0 {
-                        player_facing_angle = PI * 2.0 - 0.25;
-                    }
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::D),
-                    ..
-                } => {
-                    player_facing_angle += 0.25;
-                    if player_facing_angle >= 2.0 * PI {
-                        player_facing_angle = 0.0;
-                    }
-                }
+                Event::Quit { .. } => break 'running,
 
                 _ => {}
             }
         }
 
-        canvas.set_draw_color(Color::RGB(100, 0, 0));
-        canvas.fill_rect(Rect::new(0, 0, 1000, 250)).unwrap();
+        let player_movement_x_offset = MOVE_AMOUNT * player_facing_angle.cos();
+        let player_movement_y_offset = MOVE_AMOUNT * player_facing_angle.sin();
 
-        canvas.set_draw_color(Color::RGB(0, 0, 100));
-        canvas.fill_rect(Rect::new(0, 250, 1000, 250)).unwrap();
-
-        let mut horizontal_ray_end_loc = (0.0, 0.0);
-        let mut horizontal_ray_distance = 0.0;
-        let mut vertical_ray_end_loc = (0.0, 0.0);
-        let mut vertical_ray_distance = 0.0;
-
-        let mut angle = player_facing_angle - (PI / 4.0);
-
-        let mut fov_end = angle + (PI / 2.0);
-
-        let mut x_render: f64 = 1.0;
-
-        while angle < fov_end {
-            let mut ray_angle = angle;
-
-            if ray_angle.is_sign_negative() {
-                let amount = angle * -1.0;
-                ray_angle = (2.0 * PI) - amount;
+        for key in event_pump.keyboard_state().pressed_scancodes() {
+            if key == Scancode::W {
+                player_pos_x = player_pos_x + player_movement_x_offset;
+                player_pos_y = player_pos_y + player_movement_y_offset;
+            }
+            if key == Scancode::S {
+                player_pos_x = player_pos_x - player_movement_x_offset;
+                player_pos_y = player_pos_y - player_movement_y_offset;
             }
 
-            if ray_angle > (2.0 * PI) {
-                ray_angle = ray_angle - (2.0 * PI)
+            if key == Scancode::A {
+                player_facing_angle -= 0.10;
             }
 
-            //Horizontal Ray
-
-            if ray_angle > PI && ray_angle < 2.0 * PI {
-                let angle_at_top = (PI / 2.0) - (2.0 * PI - ray_angle);
-
-                let mut player_facing_wall_y_pos = (player_pos_y as i32 / 100) * 100;
-
-                let wall_y_offset = player_pos_y - player_facing_wall_y_pos as f64 - 0.0000001;
-                let wall_x_offset = wall_y_offset * angle_at_top.tan();
-
-                let mut player_facing_wall_x_pos = player_pos_x + wall_x_offset;
-
-                while player_facing_wall_y_pos / 100 >= 0 {
-                    let map_array_loc = (
-                        player_facing_wall_x_pos as i32 / 100,
-                        player_facing_wall_y_pos as i32 / 100 - 1,
-                    );
-
-                    if map_array_loc.0 > -1 && map_array_loc.0 < 10 {
-                        if MAP[map_array_loc.1 as usize][map_array_loc.0 as usize] >= 1 {
-                            horizontal_ray_end_loc =
-                                (player_facing_wall_x_pos, player_facing_wall_y_pos as f64);
-
-                            let y = player_pos_y - player_facing_wall_y_pos as f64;
-                            let mut x = player_pos_x - player_facing_wall_x_pos as f64;
-
-                            if x.is_sign_negative() {
-                                x = x * -1.0
-                            }
-
-                            horizontal_ray_distance = x.hypot(y);
-
-                            break;
-                        } else {
-                            let multiplier = 100.0 / wall_y_offset;
-                            player_facing_wall_x_pos =
-                                player_facing_wall_x_pos + wall_x_offset * multiplier;
-                        }
-                    }
-                    player_facing_wall_y_pos -= 100;
-                }
-            } else if ray_angle < PI || ray_angle > PI {
-                {
-                    let angle_at_top = (PI / 2.0) - ray_angle;
-
-                    let mut player_facing_wall_y_pos = (player_pos_y as i32 / 100) * 100 + 100;
-
-                    let wall_y_offset = player_facing_wall_y_pos as f64 - player_pos_y;
-                    let wall_x_offset = wall_y_offset * angle_at_top.tan();
-
-                    let mut player_facing_wall_x_pos = player_pos_x + wall_x_offset;
-
-                    while player_facing_wall_y_pos / 100 <= 1000 {
-                        let map_array_loc = (
-                            player_facing_wall_x_pos as i32 / 100,
-                            player_facing_wall_y_pos as i32 / 100,
-                        );
-
-                        if map_array_loc.0 > -1 && map_array_loc.0 < 10 {
-                            if MAP[map_array_loc.1 as usize][map_array_loc.0 as usize] >= 1 {
-                                horizontal_ray_end_loc =
-                                    (player_facing_wall_x_pos, player_facing_wall_y_pos as f64);
-
-                                let y = player_facing_wall_y_pos as f64 - player_pos_y;
-                                let mut x = player_pos_x - player_facing_wall_x_pos as f64;
-
-                                if x.is_sign_negative() {
-                                    x = x * -1.0
-                                }
-
-                                horizontal_ray_distance = x.hypot(y);
-
-                                break;
-                            } else {
-                                let multiplier = 100.0 / wall_y_offset;
-                                player_facing_wall_x_pos =
-                                    player_facing_wall_x_pos + wall_x_offset * multiplier;
-                            }
-                        }
-                        player_facing_wall_y_pos += 100;
-                    }
-                }
+            if key == Scancode::D {
+                player_facing_angle += 0.10;
             }
 
-            // Vertical Ray
-
-            if ray_angle > PI / 2.0 && ray_angle < (3.0 * PI) / 2.0 {
-                let angle_at_top = PI - ray_angle;
-
-                let mut player_facing_wall_x_pos = (player_pos_x as i32 / 100) * 100;
-
-                let wall_x_offset = player_pos_x - player_facing_wall_x_pos as f64 + 0.0000001;
-                let wall_y_offset = wall_x_offset * angle_at_top.tan();
-
-                let mut player_facing_wall_y_pos = player_pos_y + wall_y_offset;
-
-                while player_facing_wall_x_pos / 100 >= 0 {
-                    let map_array_loc = (
-                        player_facing_wall_x_pos as i32 / 100 - 1,
-                        player_facing_wall_y_pos as i32 / 100,
-                    );
-                    if map_array_loc.1 > -1 && map_array_loc.1 < 10 {
-                        if MAP[map_array_loc.1 as usize][map_array_loc.0 as usize] >= 1 {
-                            vertical_ray_end_loc =
-                                (player_facing_wall_x_pos as f64, player_facing_wall_y_pos);
-
-                            let mut y = player_facing_wall_y_pos as f64 - player_pos_y;
-                            let x = player_pos_x - player_facing_wall_x_pos as f64;
-
-                            if y.is_sign_negative() {
-                                y = y * -1.0
-                            }
-
-                            vertical_ray_distance = x.hypot(y);
-
-                            break;
-                        } else {
-                            let multiplier = 100.0 / wall_x_offset;
-                            player_facing_wall_y_pos =
-                                player_facing_wall_y_pos + wall_y_offset * multiplier;
-                        }
-                    }
-                    player_facing_wall_x_pos -= 100;
-                }
-            } else if ray_angle < PI / 2.0 || ray_angle > (3.0 * PI) / 2.0 {
-                let angle_at_top = ray_angle;
-
-                let mut player_facing_wall_x_pos = (player_pos_x as i32 / 100) * 100 + 100;
-
-                let wall_x_offset = player_facing_wall_x_pos as f64 - player_pos_x;
-                let wall_y_offset = wall_x_offset * angle_at_top.tan();
-
-                let mut player_facing_wall_y_pos = player_pos_y + wall_y_offset;
-
-                while player_facing_wall_x_pos / 100 <= 1000 {
-                    let map_array_loc = (
-                        player_facing_wall_x_pos as i32 / 100,
-                        player_facing_wall_y_pos as i32 / 100,
-                    );
-
-                    if map_array_loc.1 > -1 && map_array_loc.1 < 10 {
-                        if MAP[map_array_loc.1 as usize][map_array_loc.0 as usize] >= 1 {
-                            vertical_ray_end_loc =
-                                (player_facing_wall_x_pos as f64, player_facing_wall_y_pos);
-
-                            let mut y = player_pos_y - player_facing_wall_y_pos as f64;
-                            let x = player_facing_wall_x_pos as f64 - player_pos_x;
-
-                            if y.is_sign_negative() {
-                                y = y * -1.0
-                            }
-
-                            vertical_ray_distance = x.hypot(y);
-
-                            break;
-                        } else {
-                            let multiplier = 100.0 / wall_x_offset;
-                            player_facing_wall_y_pos =
-                                player_facing_wall_y_pos + wall_y_offset * multiplier;
-                        }
-                    }
-                    player_facing_wall_x_pos += 100;
-                }
+            if key == Scancode::Q {
+                player_facing_angle -= 0.01;
             }
 
-            if horizontal_ray_distance == 0.0 {
-                let vertical_line_y = (500.0 / vertical_ray_distance) * 100.0;
-                let draw_start_y = 250.0 - (vertical_line_y / 2.0);
-
-                canvas.set_draw_color(Color::RGB(0, 255, 0));
-                canvas
-                    .fill_rect(Rect::new(
-                        x_render as i32,
-                        draw_start_y as i32,
-                        13,
-                        vertical_line_y as u32,
-                    ))
-                    .unwrap();
-            } else if vertical_ray_distance == 0.0 {
-                let vertical_line_y = (500.0 / horizontal_ray_distance) * 100.0;
-                let draw_start_y = 250.0 - (vertical_line_y / 2.0);
-
-                canvas.set_draw_color(Color::RGB(0, 200, 0));
-                canvas
-                    .fill_rect(Rect::new(
-                        x_render as i32,
-                        draw_start_y as i32,
-                        13,
-                        vertical_line_y as u32,
-                    ))
-                    .unwrap();
-            } else if horizontal_ray_distance > vertical_ray_distance {
-                let vertical_line_y = (500.0 / vertical_ray_distance) * 100.0;
-                let draw_start_y = 250.0 - (vertical_line_y / 2.0);
-
-                canvas.set_draw_color(Color::RGB(0, 255, 0));
-                canvas
-                    .fill_rect(Rect::new(
-                        x_render as i32,
-                        draw_start_y as i32,
-                        13,
-                        vertical_line_y as u32,
-                    ))
-                    .unwrap();
-            } else {
-                let vertical_line_y = (500.0 / horizontal_ray_distance) * 100.0;
-                let draw_start_y = 250.0 - (vertical_line_y / 2.0);
-
-                canvas.set_draw_color(Color::RGB(0, 200, 0));
-                canvas
-                    .fill_rect(Rect::new(
-                        x_render as i32,
-                        draw_start_y as i32,
-                        13,
-                        vertical_line_y as u32,
-                    ))
-                    .unwrap();
+            if key == Scancode::E {
+                player_facing_angle += 0.01;
             }
 
-            x_render += 12.5;
-            angle += 0.02;
+            if key == Scancode::Escape {
+                break 'running;
+            }
         }
 
-        canvas.present(); //Draw buffer onto window
-        std::thread::sleep(Duration::new(0, 10000000)); //Delay for capped framerate / update rate
-    }
+        // for i in 0..MAP.len() {
+        //     for j in 0..MAP[i].len() {
+        //         canvas.set_draw_color(Color::RGB(25, 25, 25));
+        //         canvas.draw_rect(Rect::new(i as i32 * 100, j as i32 * 100, 100, 100))?;
+        //         if MAP[i][j] == 1 {
+        //             canvas.set_draw_color(Color::RGB(255, 255, 255));
+        //             canvas.draw_rect(Rect::new(i as i32 * 100, j as i32 * 100, 100, 100))?;
+        //         }
+        //         if MAP[i][j] == 2 {
+        //             canvas.set_draw_color(Color::RGB(255, 0, 0));
+        //             canvas.fill_rect(Rect::new(i as i32 * 100, j as i32 * 100, 100, 100))?;
+        //         }
+        //     }
+        // }
 
+        // canvas.set_draw_color(Color::RGB(0, 255, 0));
+        // canvas.draw_rect(Rect::new(
+        //     (player_pos_x * 100.0) as i32 - 5,
+        //     (player_pos_y * 100.0) as i32 - 5,
+        //     11,
+        //     11,
+        // ))?;
+
+        let mut ray_angle = player_facing_angle - FOV / 2.0;
+        let angle_increment = FOV / WIN_X as f64;
+        let mut x_draw_pos = 0;
+
+        while ray_angle < player_facing_angle + FOV / 2.0 {
+            let horizontal_ray_angle = ray_angle;
+
+            let x_step = if horizontal_ray_angle.cos().is_sign_positive() {
+                let offset = player_pos_x.ceil() - player_pos_x;
+                if offset == 0.0 {
+                    offset + 1.0
+                } else {
+                    offset
+                }
+            } else {
+                let offset = player_pos_x.floor() - player_pos_x;
+                if offset == 0.0 {
+                    offset - 1.0
+                } else {
+                    offset
+                }
+            };
+
+            let y_step = x_step * horizontal_ray_angle.tan();
+
+            let mut horizontal_map_x = player_pos_x + x_step;
+            let mut horizontal_map_y = player_pos_y + y_step;
+            let mut horizontal_ray_length: f64 = -1.0;
+
+            let y_step = y_step * (1.0 / x_step);
+
+            while horizontal_map_x < MAP.len() as f64
+                && horizontal_map_x > 0.0
+                && horizontal_map_y < MAP.len() as f64
+                && horizontal_map_y > 0.0
+            {
+                if horizontal_ray_angle.cos().is_sign_positive() {
+                    if MAP[horizontal_map_x as usize][horizontal_map_y as usize] > 0 {
+                        horizontal_ray_length = ((horizontal_map_x - player_pos_x).powf(2.0)
+                            + (horizontal_map_y - player_pos_y).powf(2.0))
+                        .sqrt();
+
+                        break;
+                    }
+
+                    horizontal_map_x += 1.0;
+                    horizontal_map_y += y_step;
+                } else {
+                    if MAP[(horizontal_map_x - 1.0) as usize][horizontal_map_y as usize] > 0 {
+                        horizontal_ray_length = ((horizontal_map_x - player_pos_x).powf(2.0)
+                            + (horizontal_map_y - player_pos_y).powf(2.0))
+                        .sqrt();
+
+                        break;
+                    }
+
+                    horizontal_map_x -= 1.0;
+                    horizontal_map_y -= y_step;
+                }
+            }
+
+            if horizontal_ray_length == -1.0 {
+                horizontal_ray_length = std::f64::MAX;
+            }
+
+            let vertical_ray_angle = PI / 2.0 - ray_angle;
+
+            let y_step = if vertical_ray_angle.cos().is_sign_positive() {
+                let offset = player_pos_y.ceil() - player_pos_y;
+                if offset == 0.0 {
+                    offset + 1.0
+                } else {
+                    offset
+                }
+            } else {
+                let offset = player_pos_y.floor() - player_pos_y;
+                if offset == 0.0 {
+                    offset - 1.0
+                } else {
+                    offset
+                }
+            };
+
+            let x_step = y_step * vertical_ray_angle.tan();
+
+            let mut vertical_map_x = player_pos_x + x_step;
+            let mut vertical_map_y = player_pos_y + y_step;
+            let mut vertical_ray_length: f64 = -1.0;
+
+            let x_step = x_step * (1.0 / y_step);
+
+            while vertical_map_x < MAP.len() as f64
+                && vertical_map_x > 0.0
+                && vertical_map_y < MAP.len() as f64
+                && vertical_map_y > 0.0
+            {
+                if vertical_ray_angle.cos().is_sign_positive() {
+                    if MAP[vertical_map_x as usize][vertical_map_y as usize] > 0 {
+                        vertical_ray_length = ((vertical_map_x - player_pos_x).powf(2.0)
+                            + (vertical_map_y - player_pos_y).powf(2.0))
+                        .sqrt();
+
+                        break;
+                    }
+
+                    vertical_map_x += x_step;
+                    vertical_map_y += 1.0;
+                } else {
+                    if MAP[vertical_map_x as usize][(vertical_map_y - 1.0) as usize] > 0 {
+                        vertical_ray_length = ((vertical_map_x - player_pos_x).powf(2.0)
+                            + (vertical_map_y - player_pos_y).powf(2.0))
+                        .sqrt();
+
+                        break;
+                    }
+
+                    vertical_map_x -= x_step;
+                    vertical_map_y -= 1.0;
+                }
+            }
+
+            if vertical_ray_length == -1.0 {
+                vertical_ray_length = std::f64::MAX;
+            }
+
+            let ray_length: f64;
+
+            if horizontal_ray_length < vertical_ray_length {
+                ray_length = horizontal_ray_length;
+
+                canvas.set_draw_color(Color::RGB(255, 0, 0));
+            } else {
+                ray_length = vertical_ray_length;
+
+                canvas.set_draw_color(Color::RGB(205, 0, 0));
+            }
+
+            let ray_height = WIN_Y as f64 / ray_length;
+            let window_offset = (WIN_Y as f64 - ray_height) / 2.0;
+
+            canvas.draw_line(
+                Point::new(x_draw_pos, window_offset as i32),
+                Point::new(x_draw_pos, ((WIN_Y as f64) - window_offset) as i32),
+            )?;
+
+            x_draw_pos += 1;
+            ray_angle += angle_increment;
+        }
+
+        canvas.present();
+        std::thread::sleep(Duration::from_millis(10));
+    }
     Ok(())
 }
