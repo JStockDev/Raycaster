@@ -1,15 +1,12 @@
 use sdl2::event::Event;
 use sdl2::keyboard::Scancode;
 use sdl2::pixels::Color;
-use sdl2::rect::{Point, Rect};
+use sdl2::rect::Point;
 use std::f64::consts::PI;
 use std::time::Duration;
 
 const WIN_X: u32 = 960;
 const WIN_Y: u32 = 540;
-
-// const WIN_X: u32 = 1000;
-// const WIN_Y: u32 = 1000;
 
 const MOVE_AMOUNT: f64 = 0.02;
 const FOV: f64 = PI / 3.0;
@@ -54,10 +51,8 @@ pub fn main() -> Result<(), String> {
         canvas.clear();
 
         for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. } => break 'running,
-
-                _ => {}
+            if let Event::Quit { .. } = event {
+                break 'running;
             }
         }
 
@@ -66,20 +61,20 @@ pub fn main() -> Result<(), String> {
 
         for key in event_pump.keyboard_state().pressed_scancodes() {
             if key == Scancode::W {
-                player_pos_x = player_pos_x + player_movement_x_offset;
-                player_pos_y = player_pos_y + player_movement_y_offset;
+                player_pos_x += player_movement_x_offset;
+                player_pos_y += player_movement_y_offset;
             }
             if key == Scancode::S {
-                player_pos_x = player_pos_x - player_movement_x_offset;
-                player_pos_y = player_pos_y - player_movement_y_offset;
+                player_pos_x -= player_movement_x_offset;
+                player_pos_y -= player_movement_y_offset;
             }
 
             if key == Scancode::A {
-                player_facing_angle -= 0.10;
+                player_facing_angle -= 0.05;
             }
 
             if key == Scancode::D {
-                player_facing_angle += 0.10;
+                player_facing_angle += 0.05;
             }
 
             if key == Scancode::Q {
@@ -94,29 +89,6 @@ pub fn main() -> Result<(), String> {
                 break 'running;
             }
         }
-
-        // for i in 0..MAP.len() {
-        //     for j in 0..MAP[i].len() {
-        //         canvas.set_draw_color(Color::RGB(25, 25, 25));
-        //         canvas.draw_rect(Rect::new(i as i32 * 100, j as i32 * 100, 100, 100))?;
-        //         if MAP[i][j] == 1 {
-        //             canvas.set_draw_color(Color::RGB(255, 255, 255));
-        //             canvas.draw_rect(Rect::new(i as i32 * 100, j as i32 * 100, 100, 100))?;
-        //         }
-        //         if MAP[i][j] == 2 {
-        //             canvas.set_draw_color(Color::RGB(255, 0, 0));
-        //             canvas.fill_rect(Rect::new(i as i32 * 100, j as i32 * 100, 100, 100))?;
-        //         }
-        //     }
-        // }
-
-        // canvas.set_draw_color(Color::RGB(0, 255, 0));
-        // canvas.draw_rect(Rect::new(
-        //     (player_pos_x * 100.0) as i32 - 5,
-        //     (player_pos_y * 100.0) as i32 - 5,
-        //     11,
-        //     11,
-        // ))?;
 
         let mut ray_angle = player_facing_angle - FOV / 2.0;
         let angle_increment = FOV / WIN_X as f64;
@@ -255,7 +227,9 @@ pub fn main() -> Result<(), String> {
                 canvas.set_draw_color(Color::RGB(205, 0, 0));
             }
 
-            let ray_height = WIN_Y as f64 / ray_length;
+            let corrected_ray = ray_length * (ray_angle - player_facing_angle).cos();
+
+            let ray_height = WIN_Y as f64 / corrected_ray;
             let window_offset = (WIN_Y as f64 - ray_height) / 2.0;
 
             canvas.draw_line(
